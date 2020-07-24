@@ -1,23 +1,62 @@
 const express = require('express'); 
-const express = require('body-parser'); 
+const bodyParser = require('body-parser'); 
+const session = require('express-session');
+const redisStorage = require('connect-redis')(session);
+const redis = require('redis');
+const nunjucks = require('nunjucks') ;
 
 const settings = require('./settings');
+const ChatClass = require('./chat');
 
 const app = express(); 
 const port = 3000; //определили порт для соединения с приложением
 const host = 'localhost'; 
-
+const client = redis.createClient()
 // парсер для данных формы application/x-www-form-urlencoded
-const urlencodedParser = bodyParser.urlencoded();
+const urlencodedParser = bodyParser.urlencoded({ extended: true });
+app.use(express.static(settings.dirs.STATIC))
+app.use(bodyParser.json());
+app.use(urlencodedParser);
+app.use(session({
+    storage: new redisStorage({
+        ttl: 360000000, //в милисекундах
+        host: host,
+        port: 6379,
+        client: client}),
+    secret: 'skoi89ujSAd3#k34',
+    saveUninitialized: true})
+);
+
+//настраиваем шаблонизатор
+nunjucks.configure(settings.dirs.TEMPLATES, {
+    autoescape: true,
+    express: app
+ });
+
+app.get('/', (request, response) => { // запрос email(начальная страница)
+    chat = new ChatClass(request.sessionID);
+    response.render('index.html', {sess_id: request.sessionID});
+});
 
 
-app.get('/', (req, res) => { // запрос email(начальная страница)
-    const compiledFunction = pug.compileFile(settings.dirs.TEMPLATES + 'index.html');
-    const resp = compiledFunction();
-    res.send(resp);
-}); 
+app.post('/new_nickname', urlencodedParser, async (request, response) => {    
+    const new_nickname = request.body.nickname;
+    chat = new ChatClass(request.sessionID);
+    data = await chat.set_nickname(new_nickname);
+    response.json(data);
+});
 
-app.post('/', urlencodedParser, (req, res) => {    //получим значение email  из тела запроса
+app.post('/load_data', urlencodedParser, async (request, response) => {    
+    chat = new ChatClass(request.sessionID);    
+    data = await chat.get_data(request.body.last_id);
+    response.json(data);
+});
+
+app.post('/post_message', urlencodedParser, async (request, response) => {    
+    const message = request.body.message;
+    chat = new ChatClass(request.sessionID);    
+    data = await chat.post_message(message);
+    response.json(data);
 });
 
 

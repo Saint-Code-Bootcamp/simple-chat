@@ -1,34 +1,80 @@
-const Сhat = function(user_id){
-    const max_messages = 200; //максимальное число сообщенией отображаемых в чате
+const simpleChat = {
+    last_id: 0, //идентификатор последнего полученного и отображенного сообщения
+    messages: [], //упорядоченый список отображаемых сообщений
+    user_id: '', //уникальный идентификатор пользователя в чате
+    nickname: '', //имя для чата
 
-    this.last_id = 0; //идентификатор последнего полученного и отображенного сообщения
-    this.messages = []; //упорядоченый список отображаемых сообщений
-    this.user_id = user_id; //уникальный идентификатор пользователя в чате
-    this.nickname; //имя для чата
 
-    this.post_message = function(text){
-        // отправляет текстовое сообщение на сервер
-    }
+    redraw: function() {
+        //перерисовать всю информацию кроме сообщений
+        $("input[name=nickname]").val(this.nickname);
+    },
 
-    this.get_messages = function(){
-        //полцчить с сервера все новые сообщения после this.last_id
-    }
+    show_messages: function (messages) {
+        //если в функцию передали сообщения - одновим эти данные у себя
+        if (typeof(messages) != 'undefined')
+            this.messages = messages;
 
-    this.show_messages = function(){
         //отобразить все сообщения и подчистить список(и объяснить зачем это)
+        for (var i in this.messages){
+            const msg = this.messages[i];
+            this.last_id = msg.id;
+            const element = $(`<div id="post${msg.id}">`);
+            element.append(`<span>${msg.time}</span>`);
+            element.append(`<span>${msg.nickname}:</span>`);
+            element.append(`<span>${msg.text}</span>`);
+            $("div.messages").append(element);
+        }
+    },
+   
+    parce_data: function(responce){
+        //обрабатывает и разбирает все данные полученные от сервера
+        console.log(responce);
+        if (typeof(responce.messages) != 'undefined') 
+            this.messages = responce.messages;
+        if (typeof(responce.user.nickname) != 'undefined') 
+            this.nickname = responce.user.nickname;   
+        
+        this.show_messages();
+        this.redraw();
+    },
+
+    load_data: function () {
+        //полцчить с сервера все новые сообщения после this.last_id
+        $.post('/load_data', {last_id: this.last_id}, (resp) => {
+            this.parce_data(resp);
+        });
     }
-
-
 }
 
-$(() => {
-    //иниализация никнейм
-    if (typeof(chat) != 'undefined'){
-        chat.nickname = $("input[name=nickname]").val();
-        if (chat.nickname == ''){
-            chat.nickname = "Гость";
-        }
-    }
+simpleChat.user_id = window.sess_id;
+simpleChat.load_data();
+// объяснить про this и почему не делаем setInterval(simpleChat.load_data, 10000);
+setInterval(() => {
+    simpleChat.load_data();
+}, 10000);
 
-    $("input[name=nickname]").onchange((ta))
+$(() => {
+    //смена никнейм
+    $("input[name=nickname]").blur((event) => {
+        const new_nickname = event.target.value;
+        console.log(new_nickname);
+        //если никнейм поменялся - отправим сообщение на сервер
+        if (simpleChat.nickname != new_nickname){
+            simpleChat.nickname = new_nickname;
+            $.post('/new_nickname', {nickname: new_nickname}, (responce) => {
+                simpleChat.show_messages(responce.messages);
+            });
+        }
+    });
+
+    //отправить сообщение
+    $(".input form").submit(() => {
+        const message = $("input[name=message]").val();
+        $.post('/post_message', {message: message}, (resp) => {
+            simpleChat.parce_data(resp);
+            $("input[name=message]").val('');
+        });
+        return false
+    });
 });
