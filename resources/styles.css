@@ -1,0 +1,23 @@
+div.input{
+   width: 100%; 
+}
+div.messages{
+    width: 100%;
+    height: 80%;
+    border: solid thin;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+.input input[name=nickname]{
+    margin: 5px;
+    width: 15%;
+    border: none;
+}
+.input input[name=message]{
+    margin: 5px;
+    width: 70%;
+}
+.input input[type=submit]{
+    margin: 5px;
+}
