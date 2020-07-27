@@ -19,12 +19,18 @@ const simpleChat = {
         for (var i in this.messages){
             const msg = this.messages[i];
             this.last_id = msg.id;
+            if ($(`#post${msg.id}`).length > 0) continue; //чтобы не дублировать элементы
             const element = $(`<div id="post${msg.id}">`);
             element.append(`<span>${msg.time}</span>`);
             element.append(`<span>${msg.nickname}:</span>`);
             element.append(`<span>${msg.text}</span>`);
-            $("div.messages").append(element);
+            $("div.messages").append(element);            
         }
+        //удалить все сообщения больше 200
+        while ($("div.messages").length > 200){
+            $("div.messages")[0].remove();
+        }
+        
     },
    
     parce_data: function(responce){
@@ -53,6 +59,7 @@ simpleChat.load_data();
 setInterval(() => {
     simpleChat.load_data();
 }, 10000);
+setInterval(simpleChat.load_data, 10000);
 
 $(() => {
     //смена никнейм

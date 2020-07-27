@@ -4,10 +4,16 @@ const session = require('express-session');
 const redisStorage = require('connect-redis')(session);
 const redis = require('redis');
 const nunjucks = require('nunjucks') ;
-
 const settings = require('./settings');
 const ChatClass = require('./chat');
 
+const mysql = require('mysql2');
+const db_pool = mysql.createPool({
+    host: 'localhost',
+    user: 'chat',
+    password: 'chat',
+    database: 'chat'
+});
 const app = express(); 
 const port = 3000; //определили порт для соединения с приложением
 const host = 'localhost'; 
@@ -59,6 +65,32 @@ app.post('/post_message', urlencodedParser, async (request, response) => {
     response.json(data);
 });
 
+
+app.get('/load_data_callback', (request, response) => {    
+    // получить данные используя callback вызовы
+    //прочитать данные пользователя из БД
+    var user_id = request.sessionID;
+    var last_id = parseInt(last_id);
+    db_pool.query(`
+        SELECT 
+            id, messages.user_id, nickname, DATE_FORMAT(datetime, '%H:%i') AS time, text 
+        FROM 
+            messages LEFT JOIN users ON messages.user_id = users.user_id
+        WHERE 
+            id > '${last_id}'
+        ORDER BY id DESC 
+        LIMIT 100;`, function(err, results, fields) {
+            var rows = results;
+            db_pool.query(`
+                SELECT * 
+                FROM  users 
+                WHERE user_id = '${user_id}' 
+                LIMIT 1;`, function (err, results, fields){
+                    response.json({ messages: rows,
+                                    user: results[0]});
+            });
+    });
+});
 
 // запускаем сервер на прослушивание порта
 app.listen(port, host, () => {
