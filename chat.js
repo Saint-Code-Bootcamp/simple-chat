@@ -38,6 +38,7 @@ class ChatClass {
         this.nickname = nickname;        
     }
 
+    // опубликовать сообщение
     post_message = async function(message){
         message = escapeStr(message);
         await db_pool_promise.execute(`INSERT INTO messages (user_id, datetime, text) VALUES('${this.user_id}', NOW(), '${message}')`); 
@@ -45,8 +46,8 @@ class ChatClass {
         return data;
     }
 
-    init = async function(){
-        // инициалиируем пользователя и загружаем его данные из БД
+    // инициалиируем пользователя и загружаем его данные из БД
+    init = async function(){        
         const [rows, ] = await db_pool_promise.query(`SELECT * FROM users WHERE user_id='${this.user_id}' LIMIT 1;`);        
         if (rows.length == 0){
             await db_pool_promise.execute(`INSERT INTO users(user_id, nickname) VALUES('${this.user_id}', '${this.nickname}');`);

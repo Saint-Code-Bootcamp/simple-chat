@@ -1,13 +1,13 @@
-const express = require('express'); 
-const bodyParser = require('body-parser'); 
-const session = require('express-session');
-const redisStorage = require('connect-redis')(session);
-const redis = require('redis');
-const nunjucks = require('nunjucks') ;
-const settings = require('./settings');
-const ChatClass = require('./chat');
+const express = require('express');  //фреймворк
+const bodyParser = require('body-parser'); //для передачи параметров из POST запросов
+const session = require('express-session'); //для работы с сессиями
+const redisStorage = require('connect-redis')(session); //для запруска сервера Radis для хранения данных сессии
+const redis = require('redis'); //клиент для соединения с сервером Radis
+const nunjucks = require('nunjucks') ; //шаблонизатор
+const settings = require('./settings'); //настройки сайта
+const ChatClass = require('./chat'); //библиотека для работы с чатом
 
-const mysql = require('mysql2');
+const mysql = require('mysql2'); //Настроим соединение с БД
 const db_pool = mysql.createPool({
     host: 'localhost',
     user: 'chat',
@@ -17,34 +17,32 @@ const db_pool = mysql.createPool({
 const app = express(); 
 const port = 3000; //определили порт для соединения с приложением
 const host = 'localhost'; 
-const client = redis.createClient()
-// парсер для данных формы application/x-www-form-urlencoded
-const urlencodedParser = bodyParser.urlencoded({ extended: true });
-app.use(express.static(settings.dirs.STATIC))
-app.use(bodyParser.json());
-app.use(urlencodedParser);
-app.use(session({
+const client = redis.createClient() //запустим клиент Radis
+const urlencodedParser = bodyParser.urlencoded({ extended: true }); // парсер для данных формы application/x-www-form-urlencoded
+app.use(express.static(settings.dirs.STATIC)) //Отдадим статические файлы в директории settings.dirs.STATIC
+app.use(bodyParser.json()); //для формирования ответов в формате JSON
+app.use(urlencodedParser); //Чтобы получить доступ к параметрам POST запроса
+app.use(session({ //Инициализируем механизм сессий
     storage: new redisStorage({
-        ttl: 360000000, //в милисекундах
+        ttl: 360000000, //время жизни сесссии в милисекундах
         host: host,
         port: 6379,
         client: client}),
     secret: 'skoi89ujSAd3#k34',
     saveUninitialized: true})
 );
-
-//настраиваем шаблонизатор
-nunjucks.configure(settings.dirs.TEMPLATES, {
+nunjucks.configure(settings.dirs.TEMPLATES, { //настраиваем шаблонизатор
     autoescape: true,
     express: app
  });
 
-app.get('/', (request, response) => { // запрос email(начальная страница)
+//Индексная страница чата
+app.get('/', (request, response) => { //
     chat = new ChatClass(request.sessionID);
     response.render('index.html', {sess_id: request.sessionID});
 });
 
-
+//обновить nickname
 app.post('/new_nickname', urlencodedParser, async (request, response) => {    
     const new_nickname = request.body.nickname;
     chat = new ChatClass(request.sessionID);
@@ -52,12 +50,14 @@ app.post('/new_nickname', urlencodedParser, async (request, response) => {
     response.json(data);
 });
 
+//загрузить данные(сообщения и список пользователей)
 app.post('/load_data', urlencodedParser, async (request, response) => {    
     chat = new ChatClass(request.sessionID);    
     data = await chat.get_data(request.body.last_id);
     response.json(data);
 });
 
+//опубликовать сообщение
 app.post('/post_message', urlencodedParser, async (request, response) => {    
     const message = request.body.message;
     chat = new ChatClass(request.sessionID);    
@@ -66,6 +66,7 @@ app.post('/post_message', urlencodedParser, async (request, response) => {
 });
 
 
+//загрузить данные (используя колбек вызовы)
 app.get('/load_data_callback', (request, response) => {    
     // получить данные используя callback вызовы
     //прочитать данные пользователя из БД
@@ -86,6 +87,7 @@ app.get('/load_data_callback', (request, response) => {
                 FROM  users 
                 WHERE user_id = '${user_id}' 
                 LIMIT 1;`, function (err, results, fields){
+                    //Возврат результата
                     response.json({ messages: rows,
                                     user: results[0]});
             });
